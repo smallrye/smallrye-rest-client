@@ -1,0 +1,12 @@
+[[index]]
+= SmallRye Rest Client Documentation
+:ext-relative: {outfilesuffix}
+:toc!:
+
+TODO
+
+[[more-resources]]
+== More Resources
+
+* https://github.com/smallrye/smallrye-rest-client/[GitHub project repository]
+* https://github.com/eclipse/microprofile-rest-client/[Eclipse MicroProfile Rest Client]

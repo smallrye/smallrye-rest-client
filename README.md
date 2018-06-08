@@ -1,0 +1,1 @@
+# SmallRye Rest Client
