@@ -1,0 +1,4 @@
+image:https://semaphoreci.com/api/v1/smallrye/smallrye-rest-client/branches/master/badge.svg["Semaphore CI", link="https://semaphoreci.com/smallrye/smallrye-rest-client"]
+image:https://img.shields.io/github/license/thorntail/thorntail.svg["License", link="http://www.apache.org/licenses/LICENSE-2.0"]
+
+= SmallRye Rest Client
