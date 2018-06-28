@@ -32,6 +32,21 @@
   <dependencies>
 
     <dependency>
+      <groupId>io.smallrye</groupId>
+      <artifactId>smallrye-rest-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.smallrye</groupId>
+      <artifactId>smallrye-config</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.smallrye</groupId>
+      <artifactId>smallrye-rest-client-testsuite-common</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
     </dependency>
@@ -42,24 +57,26 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Integration with fault-tolerance -->
+    <!-- TODO: Tests for integration with fault-tolerance and metrics are
+      ignored for now -->
+    <!-- https://github.com/smallrye/smallrye-rest-client/issues/1 -->
     <dependency>
       <groupId>org.eclipse.microprofile.fault-tolerance</groupId>
       <artifactId>microprofile-fault-tolerance-api</artifactId>
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>io.smallrye</groupId>
-      <artifactId>smallrye-fault-tolerance</artifactId>
-    </dependency>
+    <!-- dependency> <groupId>io.smallrye</groupId> <artifactId>smallrye-fault-tolerance</artifactId>
+      </dependency -->
 
-    <!-- TODO: Integration with metrics -->
     <dependency>
       <groupId>org.eclipse.microprofile.metrics</groupId>
       <artifactId>microprofile-metrics-api</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- dependency> <groupId>io.smallrye</groupId> <artifactId>smallrye-metrics</artifactId>
+      </dependency -->
 
   </dependencies>
 
