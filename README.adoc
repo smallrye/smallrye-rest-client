@@ -2,3 +2,20 @@ image:https://semaphoreci.com/api/v1/smallrye/smallrye-rest-client/branches/mast
 image:https://img.shields.io/github/license/thorntail/thorntail.svg["License", link="http://www.apache.org/licenses/LICENSE-2.0"]
 
 = SmallRye Rest Client
+
+SmallRye Rest Client is an implementation of https://github.com/eclipse/microprofile-rest-client[Eclipse MicroProfile Rest Client].
+
+== Build
+
+To build simply run
+
+ $ mvn clean install
+
+== Project Structure
+
+* *docs* - project documentation
+* *implementation* - produces implementation artifact
+* *testsuite*
+** *basic* - basic testsuite, tests functionalities which are not covered by the TCK
+** *common* - test utils shared accross all test suites
+** *tck* - TCK runner

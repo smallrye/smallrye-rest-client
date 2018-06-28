@@ -42,6 +42,7 @@ import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -54,6 +55,7 @@ import io.smallrye.restclient.app.Timer;
  *
  * @author Martin Kouba
  */
+@Ignore("We need SmallRye MP FT implementation")
 @RunWith(Arquillian.class)
 public class FaultToleranceTest {
 
