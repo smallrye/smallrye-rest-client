@@ -18,6 +18,7 @@ package io.smallrye.restclient.tests.metrics;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -33,7 +34,7 @@ import org.jboss.arquillian.test.api.ArquillianResource;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
-import org.junit.Ignore;
+import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -45,7 +46,6 @@ import io.smallrye.restclient.app.Timer;
  *
  * @author Martin Kouba
  */
-@Ignore("We need SmallRye MP Metrics implementation")
 @RunWith(Arquillian.class)
 public class MetricsTest {
 
@@ -64,8 +64,12 @@ public class MetricsTest {
 
     @Deployment
     public static WebArchive createTestArchive() {
-        return ShrinkWrap.create(WebArchive.class).addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml").addPackage(HelloResource.class.getPackage())
-                .addPackage(MetricsTest.class.getPackage());
+        WebArchive testArchive = ShrinkWrap.create(WebArchive.class).addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")
+                .addPackage(HelloResource.class.getPackage()).addPackage(MetricsTest.class.getPackage());
+        // Add MP Metrics impl
+        testArchive.addAsLibraries(
+                Maven.resolver().loadPomFromFile(new File("pom.xml")).resolve("io.smallrye:smallrye-metrics").withTransitivity().asFile());
+        return testArchive;
     }
 
     @Test
