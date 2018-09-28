@@ -15,7 +15,20 @@
  */
 package io.smallrye.restclient;
 
+import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
+
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.ClientResponseContext;
+import javax.ws.rs.core.EntityTag;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Link;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.NewCookie;
+import javax.ws.rs.core.Response;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,18 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.ClientResponseContext;
-import javax.ws.rs.core.EntityTag;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.Link;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
-
-import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
-
 
 /**
  * Created by hbraun on 22.01.18.
@@ -48,6 +49,7 @@ public class PartialResponse extends Response implements Serializable {
 
     PartialResponse(ClientResponseContext responseContext) {
         this.responseContext = responseContext;
+        this.entityStream = responseContext.getEntityStream();
     }
 
     @Override
@@ -76,7 +78,7 @@ public class PartialResponse extends Response implements Serializable {
     public <T> T readEntity(Class<T> entityType) {
 
         if (entityType.isAssignableFrom(String.class)) {
-            return (T) readStringEntity(responseContext.getEntityStream());
+            return (T) readStringEntity(entityStream);
         }  else {
             throw notSupported();
         }
@@ -115,7 +117,18 @@ public class PartialResponse extends Response implements Serializable {
 
     @Override
     public boolean bufferEntity() {
-        throw new RuntimeException("method call not supported");
+        try {
+            byte buffer[] = new byte[4096];
+            int read = 0;
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            while ((read = entityStream.read(buffer)) >= 0) {
+                outStream.write(buffer, 0, read);
+            }
+            entityStream = new ByteArrayInputStream(outStream.toByteArray());
+            return true;
+        } catch (Exception any) {
+            return false;
+        }
     }
 
     @Override
@@ -208,6 +221,8 @@ public class PartialResponse extends Response implements Serializable {
     public String getHeaderString(String name) {
         return responseContext.getHeaderString(name);
     }
+
+    private InputStream entityStream;
 
     private final transient ClientResponseContext responseContext;
 }
