@@ -21,8 +21,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.enterprise.context.Dependent;
@@ -45,6 +47,8 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     public static final String REST_URL_FORMAT = "%s/mp-rest/url";
 
     public static final String REST_SCOPE_FORMAT = "%s/mp-rest/scope";
+
+    private static final String PROPERTY_PREFIX = "%s/property/";
 
     private final Class<?> proxyType;
 
@@ -84,6 +88,7 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     public Object create(CreationalContext<Object> creationalContext) {
         RestClientBuilder builder = RestClientBuilder.newBuilder();
         String baseUrl = getBaseUrl();
+        getConfigProperties().forEach((propName,value) -> builder.property(propName,value));
         try {
             return builder.baseUrl(new URL(baseUrl)).build(proxyType);
         } catch (MalformedURLException e) {
@@ -134,6 +139,21 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
         String property = String.format(REST_URL_FORMAT, proxyType.getName());
         return config.getValue(property, String.class);
     }
+    private Map<String,Integer> getConfigProperties() {
+
+        String property = String.format(PROPERTY_PREFIX, proxyType.getName());
+        Map<String, Integer> configProperties = new HashMap<>();
+
+        for(String propertyName : config.getPropertyNames()){
+            if(propertyName.startsWith(property)){
+                Integer value = config.getValue(propertyName, Integer.class);
+                String strippedProperty = propertyName.replace(property,"");
+                configProperties.put(strippedProperty,value);
+            }
+        }
+        return configProperties;
+    }
+
 
     private Class<? extends Annotation> resolveScope() {
 
