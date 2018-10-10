@@ -15,15 +15,20 @@
  */
 package io.smallrye.restclient.tests.proxy;
 
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
 
 @Path("/v1")
+@RegisterRestClient
 public interface HelloClient {
 
     @SuperBinding
     @GET
     @Path("/hello")
     String hello();
+
 
 }
