@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
@@ -89,12 +90,31 @@ class RestClientBuilderImpl implements RestClientBuilder {
         }
     }
 
+    @Override
+    public RestClientBuilder baseUri(URI uri) {
+        this.baseURI = uri;
+        return this;
+    }
+
+    @Override
+    public RestClientBuilder executorService(ExecutorService executor) {
+        if (executor == null) {
+            throw new IllegalArgumentException("ExecutorService must not be null");
+        }
+        this.builderDelegate.executorService(executor);
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> T build(Class<T> aClass) throws IllegalStateException, RestClientDefinitionException {
 
         // Interface validity
         verifyInterface(aClass);
+
+        if (baseURI == null) {
+            throw new IllegalStateException("Neither baseUri nor baseUrl was specified");
+        }
 
         // Provider annotations
         RegisterProvider[] providers = aClass.getAnnotationsByType(RegisterProvider.class);
@@ -119,7 +139,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         T actualClient;
         ResteasyClient client;
 
-        if (proxyHost != null && !noProxyHosts.contains(this.baseURI.getHost())) {
+        if (proxyHost != null && !noProxyHosts.contains(baseURI.getHost())) {
             // Use proxy, if defined
             client = this.builderDelegate.defaultProxy(
                     proxyHost,
@@ -129,7 +149,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
             client = this.builderDelegate.build();
         }
 
-        actualClient = client.target(this.baseURI)
+        actualClient = client.target(baseURI)
                 .proxyBuilder(aClass)
                 .classloader(classLoader)
                 .defaultConsumes(MediaType.APPLICATION_OCTET_STREAM)
