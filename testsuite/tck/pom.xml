@@ -83,13 +83,6 @@
     </dependency>
 
     <dependency>
-      <groupId>javax.json</groupId>
-      <artifactId>javax.json-api</artifactId>
-      <version>1.0</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-json-p-provider</artifactId>
       <scope>test</scope>
