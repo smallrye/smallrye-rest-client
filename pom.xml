@@ -37,7 +37,7 @@
     <version.microprofile.restclient>1.0.1</version.microprofile.restclient>
     <version.microprofile.config>1.3</version.microprofile.config>
     <version.microprofile.faulttolerance>1.0</version.microprofile.faulttolerance>
-    <version.microprofile.metrics>1.1</version.microprofile.metrics>
+    <version.microprofile.metrics>1.1.1</version.microprofile.metrics>
     <version.resteasy>3.6.2.Final</version.resteasy>
     <version.cdi>1.2</version.cdi>
     <version.weld>2.4.7.Final</version.weld>
