@@ -75,7 +75,7 @@ public class PartialResponse extends Response implements Serializable {
 
 
     @Override
-    public <T> T readEntity(Class<T> entityType) {
+    public synchronized <T> T readEntity(Class<T> entityType) {
 
         if (entityType.isAssignableFrom(String.class)) {
             return (T) readStringEntity(entityStream);
@@ -116,7 +116,7 @@ public class PartialResponse extends Response implements Serializable {
     }
 
     @Override
-    public boolean bufferEntity() {
+    public synchronized boolean bufferEntity() {
         try {
             byte buffer[] = new byte[4096];
             int read = 0;
@@ -132,7 +132,7 @@ public class PartialResponse extends Response implements Serializable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         try {
             responseContext.getEntityStream().close();
         } catch (Throwable e) {
