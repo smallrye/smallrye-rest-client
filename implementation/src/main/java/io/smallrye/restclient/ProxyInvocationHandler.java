@@ -1,12 +1,12 @@
 /**
  * Copyright 2015-2017 Red Hat, Inc, and individual contributors.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,6 +15,21 @@
  */
 package io.smallrye.restclient;
 
+import io.smallrye.restclient.InvocationContextImpl.InterceptorInvocation;
+import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptor;
+import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+
+import javax.enterprise.context.spi.CreationalContext;
+import javax.enterprise.inject.spi.BeanManager;
+import javax.enterprise.inject.spi.CDI;
+import javax.enterprise.inject.spi.InterceptionType;
+import javax.enterprise.inject.spi.Interceptor;
+import javax.ws.rs.client.ResponseProcessingException;
+import javax.ws.rs.ext.ParamConverter;
+import javax.ws.rs.ext.ParamConverterProvider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -31,26 +46,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import javax.enterprise.context.spi.CreationalContext;
-import javax.enterprise.inject.spi.BeanManager;
-import javax.enterprise.inject.spi.CDI;
-import javax.enterprise.inject.spi.InterceptionType;
-import javax.enterprise.inject.spi.Interceptor;
-import javax.ws.rs.client.ResponseProcessingException;
-import javax.ws.rs.ext.ParamConverter;
-import javax.ws.rs.ext.ParamConverterProvider;
-
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-
-import io.smallrye.restclient.InvocationContextImpl.InterceptorInvocation;
-
 /**
  * Created by hbraun on 22.01.18.
  */
 class ProxyInvocationHandler implements InvocationHandler {
 
     private static final Logger LOGGER = Logger.getLogger(ProxyInvocationHandler.class);
+    public static final Type[] NO_TYPES = {};
 
     private final Object target;
 
@@ -64,10 +66,17 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     private final AtomicBoolean closed;
 
-    public ProxyInvocationHandler(Class<?> restClientInterface, Object target, Set<Object> providerInstances, ResteasyClient client) {
+    private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories;
+
+    ProxyInvocationHandler(Class<?> restClientInterface,
+                                  Object target,
+                                  Set<Object> providerInstances,
+                                  ResteasyClient client,
+                                  List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories) {
         this.target = target;
         this.providerInstances = providerInstances;
         this.client = client;
+        this.asyncInterceptorFactories = asyncInterceptorFactories;
         this.closed = new AtomicBoolean();
         BeanManager beanManager = getBeanManager(restClientInterface);
         if (beanManager != null) {
@@ -87,6 +96,8 @@ class ProxyInvocationHandler implements InvocationHandler {
         if (closed.get()) {
             throw new IllegalStateException("RestClientProxy is closed");
         }
+
+        prepareAsyncInterceptors();
 
         boolean replacementNeeded = false;
         Object[] argsReplacement = args != null ? new Object[args.length] : null;
@@ -159,6 +170,14 @@ class ProxyInvocationHandler implements InvocationHandler {
         }
     }
 
+    private void prepareAsyncInterceptors() {
+        List<AsyncInvocationInterceptor> interceptors = asyncInterceptorFactories.stream()
+                .map(AsyncInvocationInterceptorFactory::newInterceptor)
+                .collect(Collectors.toList());
+        interceptors.forEach(AsyncInvocationInterceptor::prepareContext);
+        AsyncInvocationInterceptorHandler.register(interceptors);
+    }
+
     private Object invokeRestClientProxyMethod(Object proxy, Method method, Object[] args) throws Throwable {
         switch (method.getName()) {
             case "getClient":
@@ -182,7 +201,7 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     private Type[] getGenericTypes(Class<?> aClass) {
         Type[] genericInterfaces = aClass.getGenericInterfaces();
-        Type[] genericTypes = new Type[] {};
+        Type[] genericTypes = NO_TYPES;
         for (Type genericInterface : genericInterfaces) {
             if (genericInterface instanceof ParameterizedType) {
                 genericTypes = ((ParameterizedType) genericInterface).getActualTypeArguments();

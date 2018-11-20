@@ -7,11 +7,11 @@
     <!-- property name="deploymentExportPath">target</property -->
   </engine>
 
-  <!--container qualifier="wildfly" default="true">
-    <configuration>
-      <property name="javaVmArguments">-agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=y
-      </property>
-    </configuration>
-  </container-->
+  <!--<container qualifier="wildfly" default="true">-->
+    <!--<configuration>-->
+      <!--<property name="javaVmArguments">-agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=y-->
+      <!--</property>-->
+    <!--</configuration>-->
+  <!--</container>-->
 
 </arquillian>
