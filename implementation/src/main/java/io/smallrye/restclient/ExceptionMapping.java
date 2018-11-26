@@ -74,7 +74,14 @@ class ExceptionMapping implements ClientResponseFilter {
 
             response.bufferEntity();
             if (prioritised.isPresent()) { // strange rule from the spec
-                throw (WebApplicationException) prioritised.get();
+                Throwable throwable = prioritised.get();
+                WebApplicationException exception;
+                if (throwable instanceof WebApplicationException) {
+                    exception = (WebApplicationException) throwable;
+                } else {
+                    exception = new WebApplicationException(throwable);
+                }
+                throw exception;
             }
         }
 
