@@ -18,6 +18,8 @@ package io.smallrye.restclient;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.enterprise.context.Dependent;
@@ -46,6 +49,8 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
 
     public static final String REST_URL_FORMAT = "%s/mp-rest/url";
 
+    public static final String REST_URI_FORMAT = "%s/mp-rest/uri";
+
     public static final String REST_SCOPE_FORMAT = "%s/mp-rest/scope";
 
     private static final String PROPERTY_PREFIX = "%s/property/";
@@ -64,6 +69,7 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
         this.config = ConfigProvider.getConfig();
         this.scope = this.resolveScope();
     }
+
     @Override
     public String getId() {
         return proxyType.getName();
@@ -87,18 +93,30 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     @Override
     public Object create(CreationalContext<Object> creationalContext) {
         RestClientBuilder builder = RestClientBuilder.newBuilder();
-        String baseUrl = getBaseUrl();
-        getConfigProperties().forEach((propName,value) -> builder.property(propName,value));
-        try {
-            return builder.baseUrl(new URL(baseUrl)).build(proxyType);
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("The value of URL was invalid " + baseUrl);
+
+        Optional<String> baseUri = config.getOptionalValue(String.format(REST_URI_FORMAT, proxyType.getName()), String.class);
+        if (baseUri.isPresent()) {
+            try {
+                builder.baseUri(new URI(baseUri.get()));
+            } catch (URISyntaxException e) {
+                throw new IllegalStateException("The value of URI was invalid " + baseUri);
+            }
+        } else {
+            Optional<String> baseUrl = config.getOptionalValue(String.format(REST_URL_FORMAT, proxyType.getName()), String.class);
+            if (baseUrl.isPresent()) {
+                try {
+                    builder.baseUrl(new URL(baseUrl.get()));
+                } catch (MalformedURLException e) {
+                    throw new IllegalStateException("The value of URL was invalid " + baseUrl);
+                }
+            }
         }
+        getConfigProperties().forEach((propName, value) -> builder.property(propName, value));
+        return builder.build(proxyType);
     }
 
     @Override
     public void destroy(Object instance, CreationalContext<Object> creationalContext) {
-
     }
 
     @Override
@@ -109,8 +127,10 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     @Override
     public Set<Annotation> getQualifiers() {
         Set<Annotation> qualifiers = new HashSet<Annotation>();
-        qualifiers.add(new AnnotationLiteral<Default>() { });
-        qualifiers.add(new AnnotationLiteral<Any>() { });
+        qualifiers.add(new AnnotationLiteral<Default>() {
+        });
+        qualifiers.add(new AnnotationLiteral<Any>() {
+        });
         qualifiers.add(RestClient.LITERAL);
         return qualifiers;
     }
@@ -135,25 +155,20 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
         return false;
     }
 
-    private String getBaseUrl() {
-        String property = String.format(REST_URL_FORMAT, proxyType.getName());
-        return config.getValue(property, String.class);
-    }
-    private Map<String,Integer> getConfigProperties() {
+    private Map<String, Integer> getConfigProperties() {
 
         String property = String.format(PROPERTY_PREFIX, proxyType.getName());
         Map<String, Integer> configProperties = new HashMap<>();
 
-        for(String propertyName : config.getPropertyNames()){
-            if(propertyName.startsWith(property)){
+        for (String propertyName : config.getPropertyNames()) {
+            if (propertyName.startsWith(property)) {
                 Integer value = config.getValue(propertyName, Integer.class);
-                String strippedProperty = propertyName.replace(property,"");
-                configProperties.put(strippedProperty,value);
+                String strippedProperty = propertyName.replace(property, "");
+                configProperties.put(strippedProperty, value);
             }
         }
         return configProperties;
     }
-
 
     private Class<? extends Annotation> resolveScope() {
 
@@ -162,7 +177,7 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
 
         if (configuredScope != null) {
             try {
-                return (Class<? extends Annotation>)Class.forName(configuredScope);
+                return (Class<? extends Annotation>) Class.forName(configuredScope);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid scope: " + configuredScope, e);
             }

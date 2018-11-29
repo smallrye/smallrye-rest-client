@@ -5,3 +5,7 @@ target
 .classpath
 .settings
 .metadata
+
+# ignore intellij files
+.idea
+*.iml

@@ -1,12 +1,12 @@
 /**
  * Copyright 2015-2017 Red Hat, Inc, and individual contributors.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,21 +15,18 @@
  */
 package io.smallrye.restclient;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.Proxy;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+import org.eclipse.microprofile.rest.client.RestClientDefinitionException;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
+import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
+import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
@@ -40,17 +37,24 @@ import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.ext.ParamConverterProvider;
-
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.ConfigProvider;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.eclipse.microprofile.rest.client.RestClientDefinitionException;
-import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
-import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
-import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.Proxy;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by hbraun on 15.01.18.
@@ -62,6 +66,8 @@ class RestClientBuilderImpl implements RestClientBuilder {
     private static final String RESTEASY_PROPERTY_PREFIX = "resteasy.";
 
     private static final String DEFAULT_MAPPER_PROP = "microprofile.rest.client.disable.default.mapper";
+
+    private static final DefaultMediaTypeFilter DEFAULT_MEDIA_TYPE_FILTER = new DefaultMediaTypeFilter();
 
     RestClientBuilderImpl() {
         ClientBuilder availableBuilder = ClientBuilder.newBuilder();
@@ -89,12 +95,31 @@ class RestClientBuilderImpl implements RestClientBuilder {
         }
     }
 
+    @Override
+    public RestClientBuilder baseUri(URI uri) {
+        this.baseURI = uri;
+        return this;
+    }
+
+    @Override
+    public RestClientBuilder executorService(ExecutorService executor) {
+        if (executor == null) {
+            throw new IllegalArgumentException("ExecutorService must not be null");
+        }
+        this.executorService = executor;
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> T build(Class<T> aClass) throws IllegalStateException, RestClientDefinitionException {
 
         // Interface validity
         verifyInterface(aClass);
+
+        if (baseURI == null) {
+            throw new IllegalStateException("Neither baseUri nor baseUrl was specified");
+        }
 
         // Provider annotations
         RegisterProvider[] providers = aClass.getAnnotationsByType(RegisterProvider.class);
@@ -119,17 +144,26 @@ class RestClientBuilderImpl implements RestClientBuilder {
         T actualClient;
         ResteasyClient client;
 
-        if (proxyHost != null && !noProxyHosts.contains(this.baseURI.getHost())) {
+        ResteasyClientBuilder resteasyClientBuilder;
+        if (proxyHost != null && !noProxyHosts.contains(baseURI.getHost())) {
             // Use proxy, if defined
-            client = this.builderDelegate.defaultProxy(
+            resteasyClientBuilder = this.builderDelegate.defaultProxy(
                     proxyHost,
-                    Integer.parseInt(System.getProperty("http.proxyPort", "80")))
-                    .build();
+                    Integer.parseInt(System.getProperty("http.proxyPort", "80")));
         } else {
-            client = this.builderDelegate.build();
+            resteasyClientBuilder = this.builderDelegate;
         }
+        // this is rest easy default thingy
+        ExecutorService executorService = this.executorService != null ? this.executorService : Executors.newFixedThreadPool(10);
 
-        actualClient = client.target(this.baseURI)
+        ExecutorService executor = AsyncInvocationInterceptorHandler.wrapExecutorService(executorService);
+        resteasyClientBuilder.executorService(executor);
+        resteasyClientBuilder.register(DEFAULT_MEDIA_TYPE_FILTER);
+
+        client = resteasyClientBuilder
+                .build();
+
+        actualClient = client.target(baseURI)
                 .proxyBuilder(aClass)
                 .classloader(classLoader)
                 .defaultConsumes(MediaType.APPLICATION_OCTET_STREAM)
@@ -139,7 +173,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         interfaces[0] = aClass;
         interfaces[1] = RestClientProxy.class;
 
-        return (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client));
+        return (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
     }
 
     private boolean isMapperDisabled() {
@@ -155,7 +189,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
             try {
                 Object property = this.builderDelegate.getConfiguration().getProperty(DEFAULT_MAPPER_PROP);
                 if (property != null) {
-                    disabled = (Boolean)property;
+                    disabled = (Boolean) property;
                 }
             } catch (Throwable e) {
                 // ignore cast exception
@@ -195,8 +229,8 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
             Path methodPathAnno = method.getAnnotation(Path.class);
             if (methodPathAnno != null) {
-                template = classPathAnno == null ? (ResteasyUriBuilder)UriBuilder.fromUri(methodPathAnno.value())
-                        : (ResteasyUriBuilder)UriBuilder.fromUri(classPathAnno.value() + "/" + methodPathAnno.value());
+                template = classPathAnno == null ? (ResteasyUriBuilder) UriBuilder.fromUri(methodPathAnno.value())
+                        : (ResteasyUriBuilder) UriBuilder.fromUri(classPathAnno.value() + "/" + methodPathAnno.value());
             } else {
                 template = classTemplate;
             }
@@ -271,6 +305,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
             throw new RuntimeException("Failed to register " + clazz, t);
         }
     }
+
     @Override
     public RestClientBuilder register(Class<?> aClass) {
         this.register(newInstanceOf(aClass));
@@ -299,10 +334,12 @@ class RestClientBuilderImpl implements RestClientBuilder {
     @Override
     public RestClientBuilder register(Object o) {
         if (o instanceof ResponseExceptionMapper) {
-            ResponseExceptionMapper mapper = (ResponseExceptionMapper)o;
+            ResponseExceptionMapper mapper = (ResponseExceptionMapper) o;
             register(mapper, mapper.getPriority());
         } else if (o instanceof ParamConverterProvider) {
             register(o, Priorities.USER);
+        } else if (o instanceof AsyncInvocationInterceptorFactory) {
+            this.asyncInterceptorFactories.add((AsyncInvocationInterceptorFactory) o);
         } else {
             this.builderDelegate.register(o);
         }
@@ -314,7 +351,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         if (o instanceof ResponseExceptionMapper) {
 
             // local
-            ResponseExceptionMapper mapper = (ResponseExceptionMapper)o;
+            ResponseExceptionMapper mapper = (ResponseExceptionMapper) o;
             HashMap<Class<?>, Integer> contracts = new HashMap<>();
             contracts.put(ResponseExceptionMapper.class, i);
             registerLocalProviderInstance(mapper, contracts);
@@ -325,7 +362,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         } else if (o instanceof ParamConverterProvider) {
 
             // local
-            ParamConverterProvider converter = (ParamConverterProvider)o;
+            ParamConverterProvider converter = (ParamConverterProvider) o;
             HashMap<Class<?>, Integer> contracts = new HashMap<>();
             contracts.put(ParamConverterProvider.class, i);
             registerLocalProviderInstance(converter, contracts);
@@ -333,6 +370,8 @@ class RestClientBuilderImpl implements RestClientBuilder {
             // delegate
             this.builderDelegate.register(converter, i);
 
+        } else if (o instanceof AsyncInvocationInterceptorFactory) {
+            this.asyncInterceptorFactories.add((AsyncInvocationInterceptorFactory) o);
         } else {
             this.builderDelegate.register(o, i);
         }
@@ -361,7 +400,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         if (o instanceof ResponseExceptionMapper) {
 
             //local
-            ResponseExceptionMapper mapper = (ResponseExceptionMapper)o;
+            ResponseExceptionMapper mapper = (ResponseExceptionMapper) o;
             HashMap<Class<?>, Integer> contracts = new HashMap<>();
             contracts.put(ResponseExceptionMapper.class, map.get(ResponseExceptionMapper.class));
             registerLocalProviderInstance(mapper, contracts);
@@ -398,7 +437,11 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     private final Config config;
 
+    private ExecutorService executorService;
+
     private URI baseURI;
 
     private Set<Object> localProviderInstances = new HashSet<Object>();
+
+    private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories = new ArrayList<>();
 }
