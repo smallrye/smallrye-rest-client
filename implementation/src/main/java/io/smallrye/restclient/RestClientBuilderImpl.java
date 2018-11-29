@@ -15,28 +15,6 @@
  */
 package io.smallrye.restclient;
 
-import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.ConfigProvider;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.eclipse.microprofile.rest.client.RestClientDefinitionException;
-import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
-import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
-import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
-import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
-
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Priorities;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Configuration;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.ext.ParamConverterProvider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -56,12 +34,33 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.ws.rs.HttpMethod;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Priorities;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.core.Configuration;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.ext.ParamConverterProvider;
+
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+import org.eclipse.microprofile.rest.client.RestClientDefinitionException;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
+import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
+import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
+
+import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+
 /**
  * Created by hbraun on 15.01.18.
  */
 class RestClientBuilderImpl implements RestClientBuilder {
-
-    private static final Logger LOGGER = Logger.getLogger(RestClientBuilderImpl.class);
 
     private static final String RESTEASY_PROPERTY_PREFIX = "resteasy.";
 
@@ -263,7 +262,6 @@ class RestClientBuilderImpl implements RestClientBuilder {
         }
     }
 
-
     @Override
     public Configuration getConfiguration() {
         return getConfigurationWrapper();
@@ -272,30 +270,33 @@ class RestClientBuilderImpl implements RestClientBuilder {
     @Override
     public RestClientBuilder property(String name, Object value) {
         if (name.startsWith(RESTEASY_PROPERTY_PREFIX)) {
-            // Allows to configure some of the ResteasyClientBuilder delegate properties
+            // Makes it possible to configure some of the ResteasyClientBuilder delegate properties
             String builderMethodName = name.substring(RESTEASY_PROPERTY_PREFIX.length());
+            Method builderMethod = Arrays.stream(ResteasyClientBuilder.class.getMethods())
+                    .filter(m -> builderMethodName.equals(m.getName()) && m.getParameterTypes().length >= 1)
+                    .findFirst()
+                    .orElse(null);
+            if (builderMethod == null) {
+                throw new IllegalArgumentException("ResteasyClientBuilder setter method not found: " + builderMethodName);
+            }
+            Object[] arguments;
+            if (builderMethod.getParameterTypes().length > 1) {
+                if (value instanceof List) {
+                    arguments = ((List<?>) value).toArray();
+                } else {
+                    throw new IllegalArgumentException("Value must be an instance of List<> for ResteasyClientBuilder setter method: " + builderMethodName);
+                }
+            } else {
+                arguments = new Object[] { value };
+            }
             try {
-                Method builderMethod = ResteasyClientBuilder.class.getMethod(builderMethodName, unwrapPrimitiveType(value));
-                builderMethod.invoke(builderDelegate, value);
-            } catch (NoSuchMethodException e) {
-                LOGGER.warnf("ResteasyClientBuilder method %s not found", builderMethodName);
+                builderMethod.invoke(builderDelegate, arguments);
             } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                LOGGER.errorf(e, "Unable to invoke ResteasyClientBuilder method %s", builderMethodName);
+                throw new IllegalStateException("Unable to invoke ResteasyClientBuilder method: " + builderMethodName, e);
             }
         }
         this.builderDelegate.property(name, value);
         return this;
-    }
-
-    private static Class<?> unwrapPrimitiveType(Object value) {
-        if (value instanceof Integer) {
-            return int.class;
-        } else if (value instanceof Long) {
-            return long.class;
-        } else if (value instanceof Boolean) {
-            return boolean.class;
-        }
-        return value.getClass();
     }
 
     private static Object newInstanceOf(Class<?> clazz) {
@@ -396,10 +397,9 @@ class RestClientBuilderImpl implements RestClientBuilder {
     @Override
     public RestClientBuilder register(Object o, Map<Class<?>, Integer> map) {
 
-
         if (o instanceof ResponseExceptionMapper) {
 
-            //local
+            // local
             ResponseExceptionMapper mapper = (ResponseExceptionMapper) o;
             HashMap<Class<?>, Integer> contracts = new HashMap<>();
             contracts.put(ResponseExceptionMapper.class, map.get(ResponseExceptionMapper.class));
@@ -429,6 +429,10 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
         localProviderInstances.add(provider);
         configurationWrapper.registerLocalContract(provider.getClass(), contracts);
+    }
+    
+    ResteasyClientBuilder getBuilderDelegate() {
+        return builderDelegate;
     }
 
     private final ResteasyClientBuilder builderDelegate;
