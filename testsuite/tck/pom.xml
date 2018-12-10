@@ -186,9 +186,8 @@
             <dependency>org.eclipse.microprofile.rest.client:microprofile-rest-client-tck</dependency>
           </dependenciesToScan>
           <excludes>
-            <!-- see: https://github.com/eclipse/microprofile-rest-client/issues/133 -->
-            <!-- the test method that is failing is testAsyncInvocationInterceptorProvider -->
-            <exclude>org.eclipse.microprofile.rest.client.tck.asynctests.AsyncMethodTest</exclude>
+            <!--see https://github.com/eclipse/microprofile-rest-client/issues/142 -->
+            <exclude>org.eclipse.microprofile.rest.client.tck.TimeoutViaMPConfigTest</exclude>
           </excludes>
         </configuration>
       </plugin>

@@ -164,6 +164,11 @@ class ProxyInvocationHandler implements InvocationHandler {
                     if (cause instanceof RuntimeException) {
                         throw cause;
                     }
+                } else {
+                    Throwable targetException = e.getTargetException();
+                    if (targetException instanceof RuntimeException) {
+                        throw targetException;
+                    }
                 }
                 throw e;
             }

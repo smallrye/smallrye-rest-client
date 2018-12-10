@@ -15,6 +15,20 @@
  */
 package io.smallrye.restclient;
 
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+import javax.enterprise.context.Dependent;
+import javax.enterprise.context.spi.CreationalContext;
+import javax.enterprise.inject.Any;
+import javax.enterprise.inject.Default;
+import javax.enterprise.inject.spi.Bean;
+import javax.enterprise.inject.spi.BeanManager;
+import javax.enterprise.inject.spi.InjectionPoint;
+import javax.enterprise.inject.spi.PassivationCapable;
+import javax.enterprise.util.AnnotationLiteral;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -29,21 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
-import javax.enterprise.context.Dependent;
-import javax.enterprise.context.spi.CreationalContext;
-import javax.enterprise.inject.Any;
-import javax.enterprise.inject.Default;
-import javax.enterprise.inject.spi.Bean;
-import javax.enterprise.inject.spi.BeanManager;
-import javax.enterprise.inject.spi.InjectionPoint;
-import javax.enterprise.inject.spi.PassivationCapable;
-import javax.enterprise.util.AnnotationLiteral;
-
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.ConfigProvider;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
+import java.util.concurrent.TimeUnit;
 
 public class RestClientDelegateBean implements Bean<Object>, PassivationCapable {
 
@@ -52,6 +52,10 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     public static final String REST_URI_FORMAT = "%s/mp-rest/uri";
 
     public static final String REST_SCOPE_FORMAT = "%s/mp-rest/scope";
+
+    public static final String REST_CONNECT_TIMEOUT_FORMAT = "%s/mp-rest/connectTimeout";
+    
+    public static final String REST_READ_TIMEOUT_FORMAT = "%s/mp-rest/readTimeout";
 
     private static final String PROPERTY_PREFIX = "%s/property/";
 
@@ -63,11 +67,14 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
 
     private final Config config;
 
-    RestClientDelegateBean(Class<?> proxyType, BeanManager beanManager) {
+    private final Optional<String> baseUri;
+
+    RestClientDelegateBean(Class<?> proxyType, BeanManager beanManager, Optional<String> baseUri) {
         this.proxyType = proxyType;
         this.beanManager = beanManager;
         this.config = ConfigProvider.getConfig();
         this.scope = this.resolveScope();
+        this.baseUri = baseUri;
     }
 
     @Override
@@ -94,25 +101,53 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     public Object create(CreationalContext<Object> creationalContext) {
         RestClientBuilder builder = RestClientBuilder.newBuilder();
 
-        Optional<String> baseUri = config.getOptionalValue(String.format(REST_URI_FORMAT, proxyType.getName()), String.class);
-        if (baseUri.isPresent()) {
-            try {
-                builder.baseUri(new URI(baseUri.get()));
-            } catch (URISyntaxException e) {
-                throw new IllegalStateException("The value of URI was invalid " + baseUri);
-            }
-        } else {
-            Optional<String> baseUrl = config.getOptionalValue(String.format(REST_URL_FORMAT, proxyType.getName()), String.class);
-            if (baseUrl.isPresent()) {
-                try {
-                    builder.baseUrl(new URL(baseUrl.get()));
-                } catch (MalformedURLException e) {
-                    throw new IllegalStateException("The value of URL was invalid " + baseUrl);
-                }
-            }
-        }
-        getConfigProperties().forEach((propName, value) -> builder.property(propName, value));
+        configureUri(builder);
+
+        configureTimeouts(builder);
+
+        getConfigProperties().forEach(builder::property);
         return builder.build(proxyType);
+    }
+
+    private void configureTimeouts(RestClientBuilder builder) {
+        Optional<Long> connectTimeout = getOptionalProperty(REST_CONNECT_TIMEOUT_FORMAT, Long.class);
+        connectTimeout.ifPresent(timeout -> builder.connectTimeout(timeout, TimeUnit.MILLISECONDS));
+
+        Optional<Long> readTimeout = getOptionalProperty(REST_READ_TIMEOUT_FORMAT, Long.class);
+        readTimeout.ifPresent(timeout -> builder.readTimeout(timeout, TimeUnit.MILLISECONDS));
+    }
+
+    private void configureUri(RestClientBuilder builder) {
+        Optional<String> baseUriFromConfig = getOptionalProperty(REST_URI_FORMAT, String.class);
+        Optional<String> baseUrlFromConfig = getOptionalProperty(REST_URL_FORMAT, String.class);
+
+        if (baseUriFromConfig.isPresent()) {
+            builder.baseUri(uriFromString(baseUriFromConfig.get()));
+        } else if (baseUrlFromConfig.isPresent()) {
+            builder.baseUrl(urlFromString(baseUrlFromConfig, baseUrlFromConfig.get()));
+        } else {
+            baseUri.ifPresent(uri -> builder.baseUri(uriFromString(uri)));
+        }
+    }
+
+    private <T> Optional<T> getOptionalProperty(String propertyFormat, Class<T> type) {
+        return config.getOptionalValue(String.format(propertyFormat, proxyType.getName()), type);
+    }
+
+    private URL urlFromString(Optional<String> baseUrlFromConfig, String urlString) {
+        try {
+            return new URL(urlString);
+        } catch (MalformedURLException e) {
+            throw new IllegalStateException("The value of URL was invalid " + baseUrlFromConfig);
+        }
+    }
+
+    private static URI uriFromString(String uriString) {
+        try {
+            return new URI(uriString);
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("The value of URI was invalid " + uriString);
+        }
     }
 
     @Override

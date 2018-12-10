@@ -47,7 +47,11 @@ public class AsyncInvocationInterceptorHandler {
                 if (interceptors != null) {
                     interceptors.forEach(AsyncInvocationInterceptor::applyContext);
                 }
-                runnable.run();
+                try {
+                    runnable.run();
+                } finally {
+                    interceptors.forEach(AsyncInvocationInterceptor::removeContext);
+                }
             };
         }
 
@@ -59,7 +63,11 @@ public class AsyncInvocationInterceptorHandler {
                 if (interceptors != null) {
                     interceptors.forEach(AsyncInvocationInterceptor::applyContext);
                 }
-                return callable.call();
+                try {
+                    return callable.call();
+                } finally {
+                    interceptors.forEach(AsyncInvocationInterceptor::removeContext);
+                }
             };
         }
     }
