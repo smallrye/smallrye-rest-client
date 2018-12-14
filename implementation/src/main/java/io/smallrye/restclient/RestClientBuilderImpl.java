@@ -68,6 +68,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
     private static final String DEFAULT_MAPPER_PROP = "microprofile.rest.client.disable.default.mapper";
 
     private static final DefaultMediaTypeFilter DEFAULT_MEDIA_TYPE_FILTER = new DefaultMediaTypeFilter();
+    public static final MethodInjectionFilter METHOD_INJECTION_FILTER = new MethodInjectionFilter();
 
     RestClientBuilderImpl() {
         ClientBuilder availableBuilder = ClientBuilder.newBuilder();
@@ -175,6 +176,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         ExecutorService executor = AsyncInvocationInterceptorHandler.wrapExecutorService(executorService);
         resteasyClientBuilder.executorService(executor);
         resteasyClientBuilder.register(DEFAULT_MEDIA_TYPE_FILTER);
+        resteasyClientBuilder.register(METHOD_INJECTION_FILTER);
 
         if (readTimeout != null) {
             resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
