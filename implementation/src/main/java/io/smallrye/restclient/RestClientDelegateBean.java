@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class RestClientDelegateBean implements Bean<Object>, PassivationCapable {
 
@@ -56,6 +57,8 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
     public static final String REST_CONNECT_TIMEOUT_FORMAT = "%s/mp-rest/connectTimeout";
     
     public static final String REST_READ_TIMEOUT_FORMAT = "%s/mp-rest/readTimeout";
+
+    public static final String REST_PROVIDERS = "%s/mp-rest/providers";
 
     private static final String PROPERTY_PREFIX = "%s/property/";
 
@@ -105,8 +108,30 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
 
         configureTimeouts(builder);
 
+        configureProviders(builder);
+
         getConfigProperties().forEach(builder::property);
         return builder.build(proxyType);
+    }
+
+    private void configureProviders(RestClientBuilder builder) {
+        Optional<String> maybeProviders = getOptionalProperty(REST_PROVIDERS, String.class);
+        maybeProviders.ifPresent(providers -> registerProviders(builder, providers));
+    }
+
+    private void registerProviders(RestClientBuilder builder, String providersAsString) {
+        Stream.of(providersAsString.split(","))
+                .map(String::trim)
+                .map(this::providerClassForName)
+                .forEach(builder::register);
+    }
+
+    private Class<?> providerClassForName(String name) {
+        try {
+            return Class.forName(name);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Could not find provider class: " + name);
+        }
     }
 
     private void configureTimeouts(RestClientBuilder builder) {
