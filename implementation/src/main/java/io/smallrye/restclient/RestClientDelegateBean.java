@@ -128,7 +128,7 @@ public class RestClientDelegateBean implements Bean<Object>, PassivationCapable 
 
     private Class<?> providerClassForName(String name) {
         try {
-            return Class.forName(name);
+            return Class.forName(name, true, Thread.currentThread().getContextClassLoader());
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("Could not find provider class: " + name);
         }
