@@ -45,6 +45,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.ext.ParamConverterProvider;
 
+import io.smallrye.restclient.header.ClientHeadersRequestFilter;
+import io.smallrye.restclient.header.ClientHeaderProviders;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
@@ -69,6 +71,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     private static final DefaultMediaTypeFilter DEFAULT_MEDIA_TYPE_FILTER = new DefaultMediaTypeFilter();
     public static final MethodInjectionFilter METHOD_INJECTION_FILTER = new MethodInjectionFilter();
+    public static final ClientHeadersRequestFilter HEADERS_REQUEST_FILTER = new ClientHeadersRequestFilter();
 
     RestClientBuilderImpl() {
         ClientBuilder availableBuilder = ClientBuilder.newBuilder();
@@ -177,6 +180,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         resteasyClientBuilder.executorService(executor);
         resteasyClientBuilder.register(DEFAULT_MEDIA_TYPE_FILTER);
         resteasyClientBuilder.register(METHOD_INJECTION_FILTER);
+        resteasyClientBuilder.register(HEADERS_REQUEST_FILTER);
 
         if (readTimeout != null) {
             resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
@@ -198,7 +202,9 @@ class RestClientBuilderImpl implements RestClientBuilder {
         interfaces[0] = aClass;
         interfaces[1] = RestClientProxy.class;
 
-        return (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
+        T proxy = (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
+        ClientHeaderProviders.registerForClass(aClass, proxy);
+        return proxy;
     }
 
     private boolean isMapperDisabled() {

@@ -37,18 +37,17 @@ public class RestClientListeners {
 
     static {
         listeners = loadListeners();
-
     }
 
     private static List<RestClientListener> loadListeners() {
-        List<RestClientListener> slisteners = new ArrayList<>();
+        List<RestClientListener> listeners = new ArrayList<>();
         ServiceLoader.load(RestClientListener.class)
-                .forEach(slisteners::add);
-        Collections.unmodifiableCollection(slisteners);
-        return slisteners;
+                .forEach(listeners::add);
+        Collections.unmodifiableCollection(listeners);
+        return listeners;
     }
 
-    public static Collection<RestClientListener> get() {
+    static Collection<RestClientListener> get() {
         return listeners;
     }
 }

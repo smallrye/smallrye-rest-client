@@ -17,6 +17,7 @@ package io.smallrye.restclient;
 
 import io.smallrye.restclient.InvocationContextImpl.InterceptorInvocation;
 import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+import io.smallrye.restclient.header.ClientHeaderFillingException;
 import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptor;
 import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
 import org.jboss.logging.Logger;
@@ -27,6 +28,7 @@ import javax.enterprise.inject.spi.BeanManager;
 import javax.enterprise.inject.spi.CDI;
 import javax.enterprise.inject.spi.InterceptionType;
 import javax.enterprise.inject.spi.Interceptor;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ResponseProcessingException;
 import javax.ws.rs.ext.ParamConverter;
 import javax.ws.rs.ext.ParamConverterProvider;
@@ -69,10 +71,10 @@ class ProxyInvocationHandler implements InvocationHandler {
     private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories;
 
     ProxyInvocationHandler(Class<?> restClientInterface,
-                                  Object target,
-                                  Set<Object> providerInstances,
-                                  ResteasyClient client,
-                                  List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories) {
+                           Object target,
+                           Set<Object> providerInstances,
+                           ResteasyClient client,
+                           List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories) {
         this.target = target;
         this.providerInstances = providerInstances;
         this.client = client;
@@ -166,6 +168,10 @@ class ProxyInvocationHandler implements InvocationHandler {
                     }
                 } else {
                     Throwable targetException = e.getTargetException();
+                    if (targetException instanceof ProcessingException &&
+                            targetException.getCause() instanceof ClientHeaderFillingException) {
+                        throw targetException.getCause().getCause();
+                    }
                     if (targetException instanceof RuntimeException) {
                         throw targetException;
                     }
@@ -277,7 +283,7 @@ class ProxyInvocationHandler implements InvocationHandler {
                 merged.add(annotation);
             }
         }
-        return merged.toArray(new Annotation[] {});
+        return merged.toArray(new Annotation[]{});
     }
 
 }
