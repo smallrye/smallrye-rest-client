@@ -61,7 +61,7 @@ public class ClientHeaderProviders {
     /**
      * Register, in a static map, {@link ClientHeaderProvider}`s for the given class and all of its methods
      *
-     * @param clientClass a class to scan for {@link ClientHeaderParam} and {@link RegisterClientHeaders}
+     * @param clientClass a class to scan for {@link org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam} and {@link RegisterClientHeaders}
      * @param clientProxy proxy of the clientClass, used to handle the default methods
      */
     public static void registerForClass(Class<?> clientClass, Object clientProxy) {
