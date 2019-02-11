@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
@@ -44,6 +45,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.ext.ParamConverterProvider;
 
+import io.smallrye.restclient.header.ClientHeadersRequestFilter;
+import io.smallrye.restclient.header.ClientHeaderProviders;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
@@ -67,27 +70,29 @@ class RestClientBuilderImpl implements RestClientBuilder {
     private static final String DEFAULT_MAPPER_PROP = "microprofile.rest.client.disable.default.mapper";
 
     private static final DefaultMediaTypeFilter DEFAULT_MEDIA_TYPE_FILTER = new DefaultMediaTypeFilter();
+    public static final MethodInjectionFilter METHOD_INJECTION_FILTER = new MethodInjectionFilter();
+    public static final ClientHeadersRequestFilter HEADERS_REQUEST_FILTER = new ClientHeadersRequestFilter();
 
     RestClientBuilderImpl() {
         ClientBuilder availableBuilder = ClientBuilder.newBuilder();
 
         if (availableBuilder instanceof ResteasyClientBuilder) {
-            this.builderDelegate = (ResteasyClientBuilder) availableBuilder;
-            this.configurationWrapper = new ConfigurationWrapper(this.builderDelegate.getConfiguration());
-            this.config = ConfigProvider.getConfig();
+            builderDelegate = (ResteasyClientBuilder) availableBuilder;
+            configurationWrapper = new ConfigurationWrapper(builderDelegate.getConfiguration());
+            config = ConfigProvider.getConfig();
         } else {
             throw new IllegalStateException("Incompatible client builder found " + availableBuilder.getClass());
         }
     }
 
     public Configuration getConfigurationWrapper() {
-        return this.configurationWrapper;
+        return configurationWrapper;
     }
 
     @Override
     public RestClientBuilder baseUrl(URL url) {
         try {
-            this.baseURI = url.toURI();
+            baseURI = url.toURI();
             return this;
         } catch (URISyntaxException e) {
             throw new RuntimeException(e.getMessage());
@@ -96,7 +101,21 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     @Override
     public RestClientBuilder baseUri(URI uri) {
-        this.baseURI = uri;
+        baseURI = uri;
+        return this;
+    }
+
+    @Override
+    public RestClientBuilder connectTimeout(long l, TimeUnit timeUnit) {
+        connectTimeout = l;
+        connectTimeoutUnit = timeUnit;
+        return this;
+    }
+
+    @Override
+    public RestClientBuilder readTimeout(long time, TimeUnit timeUnit) {
+        readTimeout = time;
+        readTimeoutUnit = timeUnit;
         return this;
     }
 
@@ -105,13 +124,15 @@ class RestClientBuilderImpl implements RestClientBuilder {
         if (executor == null) {
             throw new IllegalArgumentException("ExecutorService must not be null");
         }
-        this.executorService = executor;
+        executorService = executor;
         return this;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <T> T build(Class<T> aClass) throws IllegalStateException, RestClientDefinitionException {
+
+        RestClientListeners.get().forEach(listener -> listener.onNewClient(aClass, this));
 
         // Interface validity
         verifyInterface(aClass);
@@ -132,7 +153,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
             register(DefaultResponseExceptionMapper.class);
         }
 
-        this.builderDelegate.register(new ExceptionMapping(localProviderInstances), 1);
+        builderDelegate.register(new ExceptionMapping(localProviderInstances), 1);
 
         ClassLoader classLoader = aClass.getClassLoader();
 
@@ -146,18 +167,27 @@ class RestClientBuilderImpl implements RestClientBuilder {
         ResteasyClientBuilder resteasyClientBuilder;
         if (proxyHost != null && !noProxyHosts.contains(baseURI.getHost())) {
             // Use proxy, if defined
-            resteasyClientBuilder = this.builderDelegate.defaultProxy(
+            resteasyClientBuilder = builderDelegate.defaultProxy(
                     proxyHost,
                     Integer.parseInt(System.getProperty("http.proxyPort", "80")));
         } else {
-            resteasyClientBuilder = this.builderDelegate;
+            resteasyClientBuilder = builderDelegate;
         }
-        // this is rest easy default thingy
+        // this is rest easy default
         ExecutorService executorService = this.executorService != null ? this.executorService : Executors.newFixedThreadPool(10);
 
         ExecutorService executor = AsyncInvocationInterceptorHandler.wrapExecutorService(executorService);
         resteasyClientBuilder.executorService(executor);
         resteasyClientBuilder.register(DEFAULT_MEDIA_TYPE_FILTER);
+        resteasyClientBuilder.register(METHOD_INJECTION_FILTER);
+        resteasyClientBuilder.register(HEADERS_REQUEST_FILTER);
+
+        if (readTimeout != null) {
+            resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
+        }
+        if (connectTimeout != null) {
+            resteasyClientBuilder.connectTimeout(connectTimeout, connectTimeoutUnit);
+        }
 
         client = resteasyClientBuilder
                 .build();
@@ -172,12 +202,14 @@ class RestClientBuilderImpl implements RestClientBuilder {
         interfaces[0] = aClass;
         interfaces[1] = RestClientProxy.class;
 
-        return (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
+        T proxy = (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
+        ClientHeaderProviders.registerForClass(aClass, proxy);
+        return proxy;
     }
 
     private boolean isMapperDisabled() {
         boolean disabled = false;
-        Optional<Boolean> defaultMapperProp = this.config.getOptionalValue(DEFAULT_MAPPER_PROP, Boolean.class);
+        Optional<Boolean> defaultMapperProp = config.getOptionalValue(DEFAULT_MAPPER_PROP, Boolean.class);
 
         // disabled through config api
         if (defaultMapperProp.isPresent() && defaultMapperProp.get().equals(Boolean.TRUE)) {
@@ -186,7 +218,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
             // disabled through jaxrs property
             try {
-                Object property = this.builderDelegate.getConfiguration().getProperty(DEFAULT_MAPPER_PROP);
+                Object property = builderDelegate.getConfiguration().getProperty(DEFAULT_MAPPER_PROP);
                 if (property != null) {
                     disabled = (Boolean) property;
                 }
@@ -221,7 +253,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         ResteasyUriBuilder classTemplate = null;
         if (classPathAnno != null) {
             classTemplate = (ResteasyUriBuilder) UriBuilder.fromUri(classPathAnno.value());
-            classLevelVariables.addAll(classTemplate.getPathParamNamesInDeclarationOrder());
+            classLevelVariables.addAll(classTemplate.getPathParamNamesInDeclarationOrder()); // TODO: doesn't seem to be used!
         }
         ResteasyUriBuilder template;
         for (Method method : methods) {
@@ -295,7 +327,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
                 throw new IllegalStateException("Unable to invoke ResteasyClientBuilder method: " + builderMethodName, e);
             }
         }
-        this.builderDelegate.property(name, value);
+        builderDelegate.property(name, value);
         return this;
     }
 
@@ -309,26 +341,26 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     @Override
     public RestClientBuilder register(Class<?> aClass) {
-        this.register(newInstanceOf(aClass));
+        register(newInstanceOf(aClass));
         return this;
     }
 
     @Override
     public RestClientBuilder register(Class<?> aClass, int i) {
 
-        this.register(newInstanceOf(aClass), i);
+        register(newInstanceOf(aClass), i);
         return this;
     }
 
     @Override
     public RestClientBuilder register(Class<?> aClass, Class<?>[] classes) {
-        this.register(newInstanceOf(aClass), classes);
+        register(newInstanceOf(aClass), classes);
         return this;
     }
 
     @Override
     public RestClientBuilder register(Class<?> aClass, Map<Class<?>, Integer> map) {
-        this.register(newInstanceOf(aClass), map);
+        register(newInstanceOf(aClass), map);
         return this;
     }
 
@@ -340,9 +372,9 @@ class RestClientBuilderImpl implements RestClientBuilder {
         } else if (o instanceof ParamConverterProvider) {
             register(o, Priorities.USER);
         } else if (o instanceof AsyncInvocationInterceptorFactory) {
-            this.asyncInterceptorFactories.add((AsyncInvocationInterceptorFactory) o);
+            asyncInterceptorFactories.add((AsyncInvocationInterceptorFactory) o);
         } else {
-            this.builderDelegate.register(o);
+            builderDelegate.register(o);
         }
         return this;
     }
@@ -358,7 +390,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
             registerLocalProviderInstance(mapper, contracts);
 
             // delegate
-            this.builderDelegate.register(mapper, i);
+            builderDelegate.register(mapper, i);
 
         } else if (o instanceof ParamConverterProvider) {
 
@@ -369,12 +401,12 @@ class RestClientBuilderImpl implements RestClientBuilder {
             registerLocalProviderInstance(converter, contracts);
 
             // delegate
-            this.builderDelegate.register(converter, i);
+            builderDelegate.register(converter, i);
 
         } else if (o instanceof AsyncInvocationInterceptorFactory) {
-            this.asyncInterceptorFactories.add((AsyncInvocationInterceptorFactory) o);
+            asyncInterceptorFactories.add((AsyncInvocationInterceptorFactory) o);
         } else {
-            this.builderDelegate.register(o, i);
+            builderDelegate.register(o, i);
         }
         return this;
     }
@@ -390,7 +422,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         }
 
         // other
-        this.builderDelegate.register(o, classes);
+        builderDelegate.register(o, classes);
         return this;
     }
 
@@ -406,10 +438,10 @@ class RestClientBuilderImpl implements RestClientBuilder {
             registerLocalProviderInstance(mapper, contracts);
 
             // other
-            this.builderDelegate.register(o, map);
+            builderDelegate.register(o, map);
 
         } else {
-            this.builderDelegate.register(o, map);
+            builderDelegate.register(o, map);
         }
 
         return this;
@@ -445,7 +477,13 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     private URI baseURI;
 
-    private Set<Object> localProviderInstances = new HashSet<Object>();
+    private Long connectTimeout;
+    private TimeUnit connectTimeoutUnit;
+
+    private Long readTimeout;
+    private TimeUnit readTimeoutUnit;
+
+    private Set<Object> localProviderInstances = new HashSet<>();
 
     private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories = new ArrayList<>();
 }
