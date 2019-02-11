@@ -78,6 +78,9 @@ public class FaultToleranceTest {
         // Add MP FT impl
         testArchive.addAsLibraries(
                 Maven.resolver().loadPomFromFile(new File("pom.xml")).resolve("io.smallrye:smallrye-fault-tolerance").withTransitivity().asFile());
+        // Add MP Metrics impl
+        testArchive.addAsLibraries(
+                Maven.resolver().loadPomFromFile(new File("pom.xml")).resolve("io.smallrye:smallrye-metrics").withTransitivity().asFile());
         return testArchive;
     }
 
