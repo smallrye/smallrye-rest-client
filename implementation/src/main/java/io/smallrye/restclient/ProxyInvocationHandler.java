@@ -236,7 +236,8 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     private static BeanManager getBeanManager(Class<?> restClientInterface) {
         try {
-            return CDI.current().getBeanManager();
+            CDI<Object> current = CDI.current();
+            return current != null ? current.getBeanManager() : null;
         } catch (IllegalStateException e) {
             LOGGER.warnf("CDI container is not available - interceptor bindings declared on %s will be ignored", restClientInterface.getSimpleName());
             return null;
