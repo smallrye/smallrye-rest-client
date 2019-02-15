@@ -25,7 +25,7 @@
   </parent>
 
   <artifactId>smallrye-rest-client-parent</artifactId>
-  <version>1.2.0</version>
+  <version>1.2.1-SNAPSHOT</version>
 
   <packaging>pom</packaging>
   <name>SmallRye: MicroProfile Rest Client - Parent</name>
@@ -57,7 +57,7 @@
     <connection>scm:git:git@github.com:smallrye/smallrye-rest-client</connection>
     <developerConnection>scm:git:git@github.com:smallrye/smallrye-rest-client</developerConnection>
     <url>https://github.com/smallrye/smallrye-rest-client/</url>
-    <tag>1.2.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <modules>
