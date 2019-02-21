@@ -47,11 +47,11 @@ import static io.smallrye.restclient.utils.ListCastUtils.castToListOfStrings;
  * <br>
  * Date: 1/31/19
  */
-class HttpHeadersContextProvider implements HttpHeaders {
+public class HttpHeadersContextProvider implements HttpHeaders {
 
     private final ClientRequestContext context;
 
-    HttpHeadersContextProvider(ClientRequestContext context) {
+    public HttpHeadersContextProvider(ClientRequestContext context) {
         this.context = context;
     }
 

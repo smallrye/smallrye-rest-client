@@ -31,7 +31,7 @@ import javax.ws.rs.client.ResponseProcessingException;
  *
  * @author Martin Kouba
  */
-class InvocationContextImpl implements InvocationContext {
+public class InvocationContextImpl implements InvocationContext {
 
     private final Object target;
 
@@ -51,7 +51,7 @@ class InvocationContextImpl implements InvocationContext {
      * @param args
      * @param chain
      */
-    InvocationContextImpl(Object target, Method method, Object[] args, List<InterceptorInvocation> chain) {
+    public InvocationContextImpl(Object target, Method method, Object[] args, List<InterceptorInvocation> chain) {
         this.target = target;
         this.method = method;
         this.args = args;
@@ -146,7 +146,7 @@ class InvocationContextImpl implements InvocationContext {
         return null;
     }
 
-    static class InterceptorInvocation {
+    public static class InterceptorInvocation {
 
         @SuppressWarnings("rawtypes")
         private final Interceptor interceptor;

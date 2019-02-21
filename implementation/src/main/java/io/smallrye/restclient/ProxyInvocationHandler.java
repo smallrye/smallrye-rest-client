@@ -51,7 +51,7 @@ import java.util.stream.Collectors;
 /**
  * Created by hbraun on 22.01.18.
  */
-class ProxyInvocationHandler implements InvocationHandler {
+public class ProxyInvocationHandler implements InvocationHandler {
 
     private static final Logger LOGGER = Logger.getLogger(ProxyInvocationHandler.class);
     public static final Type[] NO_TYPES = {};
@@ -70,7 +70,7 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories;
 
-    ProxyInvocationHandler(Class<?> restClientInterface,
+    public ProxyInvocationHandler(Class<?> restClientInterface,
                            Object target,
                            Set<Object> providerInstances,
                            ResteasyClient client,

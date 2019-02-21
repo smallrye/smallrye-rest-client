@@ -84,7 +84,7 @@ public class ClientHeaderProvider {
         this.generators = generators;
     }
 
-    void addHeaders(MultivaluedMap<String, String> headers) {
+    public void addHeaders(MultivaluedMap<String, String> headers) {
         generators.forEach(g -> g.fillHeaders(headers));
     }
 

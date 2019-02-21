@@ -47,7 +47,7 @@ public class RestClientListeners {
         return listeners;
     }
 
-    static Collection<RestClientListener> get() {
+    public static Collection<RestClientListener> get() {
         return listeners;
     }
 }

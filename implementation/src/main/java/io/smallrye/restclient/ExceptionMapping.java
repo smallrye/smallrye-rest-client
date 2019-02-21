@@ -32,9 +32,9 @@ import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
 /**
  * Created by hbraun on 22.01.18.
  */
-class ExceptionMapping implements ClientResponseFilter {
+public class ExceptionMapping implements ClientResponseFilter {
 
-    ExceptionMapping(Set<Object> instances) {
+    public ExceptionMapping(Set<Object> instances) {
         this.instances = instances;
     }
 

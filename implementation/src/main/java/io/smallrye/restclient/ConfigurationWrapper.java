@@ -28,7 +28,7 @@ import javax.ws.rs.core.Feature;
 /**
  * Created by hbraun on 22.01.18.
  */
-class ConfigurationWrapper implements Configuration {
+public class ConfigurationWrapper implements Configuration {
 
     public ConfigurationWrapper(Configuration delegate) {
         this.delegate = delegate;
@@ -100,7 +100,7 @@ class ConfigurationWrapper implements Configuration {
         return delegate.getInstances();
     }
 
-    void registerLocalContract(Class<?> provider, Map<Class<?>, Integer> contracts) {
+    public void registerLocalContract(Class<?> provider, Map<Class<?>, Integer> contracts) {
         localClassContracts.put(provider, contracts);
     }
 
