@@ -15,6 +15,7 @@
  */
 package io.smallrye.restclient.tests.tck;
 
+import org.jboss.arquillian.container.spi.client.container.DeploymentExceptionTransformer;
 import org.jboss.arquillian.container.test.spi.client.deployment.ApplicationArchiveProcessor;
 import org.jboss.arquillian.core.spi.LoadableExtension;
 
@@ -23,6 +24,7 @@ public class RestClientExtension implements LoadableExtension {
     @Override
     public void register(ExtensionBuilder extensionBuilder) {
         extensionBuilder.service(ApplicationArchiveProcessor.class, RestClientArchiveProcessor.class);
+        extensionBuilder.service(DeploymentExceptionTransformer.class, TckDeploymentExceptionTransformer.class);
     }
 
 }
