@@ -48,6 +48,7 @@ public class ClientHeaderProviders {
     public static Optional<ClientHeaderProvider> getProvider(Method method) {
         return Optional.ofNullable(providersForMethod.get(method));
     }
+
     /**
      * Get {@link ClientHeadersFactory} for a given class, if exists
      * @param aClass a class to get the ClientHeadersFactory for
