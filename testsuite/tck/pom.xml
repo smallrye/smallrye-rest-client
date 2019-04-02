@@ -163,7 +163,7 @@
       <plugin>
         <groupId>uk.co.automatictester</groupId>
         <artifactId>wiremock-maven-plugin</artifactId>
-        <version>4.1.0</version>
+        <version>4.3.0</version>
         <executions>
           <execution>
             <phase>generate-test-sources</phase>
