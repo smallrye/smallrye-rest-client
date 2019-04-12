@@ -23,6 +23,7 @@ import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,6 +36,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -120,6 +123,24 @@ class RestClientBuilderImpl implements RestClientBuilder {
     }
 
     @Override
+    public RestClientBuilder sslContext(SSLContext sslContext) {
+        this.sslContext = sslContext;
+        return this;
+    }
+
+    @Override
+    public RestClientBuilder trustStore(KeyStore trustStore) {
+        this.trustStore = trustStore;
+        return this;
+    }
+
+    @Override
+    public RestClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
+        this.hostnameVerifier = hostnameVerifier;
+        return this;
+    }
+
+    @Override
     public RestClientBuilder executorService(ExecutorService executor) {
         if (executor == null) {
             throw new IllegalArgumentException("ExecutorService must not be null");
@@ -181,6 +202,10 @@ class RestClientBuilderImpl implements RestClientBuilder {
         resteasyClientBuilder.register(DEFAULT_MEDIA_TYPE_FILTER);
         resteasyClientBuilder.register(METHOD_INJECTION_FILTER);
         resteasyClientBuilder.register(HEADERS_REQUEST_FILTER);
+        resteasyClientBuilder.sslContext(sslContext);
+        resteasyClientBuilder.trustStore(trustStore);
+        resteasyClientBuilder.hostnameVerifier(hostnameVerifier);
+        resteasyClientBuilder.setIsTrustSelfSignedCertificates(false);// mstodo property to override it (MP Config)
 
         if (readTimeout != null) {
             resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
@@ -482,6 +507,10 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     private Long readTimeout;
     private TimeUnit readTimeoutUnit;
+
+    private SSLContext sslContext;
+    private KeyStore trustStore;
+    private HostnameVerifier hostnameVerifier;
 
     private Set<Object> localProviderInstances = new HashSet<>();
 
