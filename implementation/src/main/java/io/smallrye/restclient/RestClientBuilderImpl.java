@@ -59,9 +59,9 @@ import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactor
 import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
-import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
 
 import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+import org.jboss.resteasy.spi.ResteasyUriBuilder;
 
 /**
  * Created by hbraun on 15.01.18.
@@ -135,6 +135,13 @@ class RestClientBuilderImpl implements RestClientBuilder {
     }
 
     @Override
+    public RestClientBuilder keyStore(KeyStore keyStore, String keyStorePassword) {
+        this.keyStore = keyStore;
+        this.keystorePassword = keyStorePassword;
+        return this;
+    }
+
+    @Override
     public RestClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
         this.hostnameVerifier = hostnameVerifier;
         return this;
@@ -204,8 +211,12 @@ class RestClientBuilderImpl implements RestClientBuilder {
         resteasyClientBuilder.register(HEADERS_REQUEST_FILTER);
         resteasyClientBuilder.sslContext(sslContext);
         resteasyClientBuilder.trustStore(trustStore);
+        resteasyClientBuilder.keyStore(keyStore, keystorePassword);
+
         resteasyClientBuilder.hostnameVerifier(hostnameVerifier);
-        resteasyClientBuilder.setIsTrustSelfSignedCertificates(false);// mstodo property to override it (MP Config)
+        resteasyClientBuilder.setIsTrustSelfSignedCertificates(false);
+
+
 
         if (readTimeout != null) {
             resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
@@ -487,7 +498,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         localProviderInstances.add(provider);
         configurationWrapper.registerLocalContract(provider.getClass(), contracts);
     }
-    
+
     ResteasyClientBuilder getBuilderDelegate() {
         return builderDelegate;
     }
@@ -510,6 +521,8 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     private SSLContext sslContext;
     private KeyStore trustStore;
+    private KeyStore keyStore;
+    private String keystorePassword;
     private HostnameVerifier hostnameVerifier;
 
     private Set<Object> localProviderInstances = new HashSet<>();

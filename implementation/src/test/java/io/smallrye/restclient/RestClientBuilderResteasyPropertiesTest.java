@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.junit.Test;
 
 public class RestClientBuilderResteasyPropertiesTest {
@@ -43,7 +44,7 @@ public class RestClientBuilderResteasyPropertiesTest {
     }
 
     Field getField(String name) throws NoSuchFieldException, SecurityException {
-        Field field = ResteasyClientBuilder.class.getDeclaredField(name);
+        Field field = ResteasyClientBuilderImpl.class.getDeclaredField(name);
         field.setAccessible(true);
         return field;
     }
