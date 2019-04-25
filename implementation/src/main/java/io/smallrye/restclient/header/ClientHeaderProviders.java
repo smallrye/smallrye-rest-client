@@ -28,10 +28,6 @@ import java.util.stream.Stream;
 
 /**
  * A storage of {@link ClientHeaderProvider}s
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/12/19
  */
 public class ClientHeaderProviders {
 

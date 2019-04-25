@@ -17,10 +17,6 @@ package io.smallrye.restclient.header;
 
 /**
  * Thrown on errors in generating header values
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/24/19
  */
 public class ClientHeaderFillingException extends RuntimeException {
     public ClientHeaderFillingException(String message, Throwable cause) {

@@ -25,9 +25,6 @@ import javax.ws.rs.RuntimeType;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Feature;
 
-/**
- * Created by hbraun on 22.01.18.
- */
 public class ConfigurationWrapper implements Configuration {
 
     public ConfigurationWrapper(Configuration delegate) {

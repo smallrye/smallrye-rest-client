@@ -21,11 +21,6 @@ import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
-/**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 11/19/18
- */
 public class AsyncInvocationInterceptorHandler {
 
     private static final ThreadLocal<Collection<AsyncInvocationInterceptor>> threadBoundInterceptors = new ThreadLocal<>();

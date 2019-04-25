@@ -40,10 +40,6 @@ import static io.smallrye.restclient.utils.ListCastUtils.castToListOfStrings;
  *
  * Then, if a `ClientHeadersFactory` is defined, all the headers, together with headers from `IncomingHeadersProvider`,
  * are passed to it and it can overwrite them.
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/12/19
  */
 @Priority(Integer.MIN_VALUE)
 public class ClientHeadersRequestFilter implements ClientRequestFilter {

@@ -50,10 +50,6 @@ import io.smallrye.restclient.app.HelloResource;
 import io.smallrye.restclient.app.Latch;
 import io.smallrye.restclient.app.Timer;
 
-/**
- *
- * @author Martin Kouba
- */
 @RunWith(Arquillian.class)
 public class FaultToleranceTest {
 

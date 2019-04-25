@@ -26,10 +26,6 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.jboss.weld.environment.deployment.discovery.BeanArchiveHandler;
 
-/**
- *
- * @author Martin Kouba
- */
 public class SmallRyeRestClientArchiveProcessor implements ApplicationArchiveProcessor {
 
     @Override

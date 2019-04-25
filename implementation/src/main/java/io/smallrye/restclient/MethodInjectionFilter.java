@@ -22,11 +22,6 @@ import java.lang.reflect.Method;
 
 import static io.smallrye.restclient.utils.ClientRequestContextUtils.getMethod;
 
-/**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 12/14/18
- */
 @Priority(Integer.MIN_VALUE)
 public class MethodInjectionFilter implements ClientRequestFilter {
     @Override

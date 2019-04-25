@@ -29,8 +29,6 @@ import org.jboss.weld.environment.util.Files;
 
 /**
  * Special handler for WildFly VFS urls.
- *
- * @author Martin Kouba
  */
 @Priority(1)
 public class SmallRyeBeanArchiveHandler implements BeanArchiveHandler {

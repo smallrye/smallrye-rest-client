@@ -30,10 +30,6 @@ import javax.enterprise.inject.spi.WithAnnotations;
 
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
-/**
- *
- * @author hbraun
- */
 public class RestClientExtension implements Extension {
 
     private static Set<RestClientData> proxyTypes = new LinkedHashSet<>();

@@ -27,10 +27,6 @@ import javax.enterprise.inject.spi.Interceptor;
 import javax.interceptor.InvocationContext;
 import javax.ws.rs.client.ResponseProcessingException;
 
-/**
- *
- * @author Martin Kouba
- */
 public class InvocationContextImpl implements InvocationContext {
 
     private final Object target;

@@ -42,10 +42,6 @@ import static io.smallrye.restclient.utils.ListCastUtils.castToListOfStrings;
  * Used to inject HttpHeaders to the client providers (filters, etc).
  *
  * based on {@link org.jboss.resteasy.specimpl.ResteasyHttpHeaders}
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/31/19
  */
 public class HttpHeadersContextProvider implements HttpHeaders {
 

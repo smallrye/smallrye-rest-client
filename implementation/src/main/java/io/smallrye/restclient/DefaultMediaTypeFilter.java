@@ -23,11 +23,6 @@ import javax.ws.rs.core.MediaType;
 
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
-/**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 11/20/18
- */
 @Priority(Integer.MIN_VALUE)
 public class DefaultMediaTypeFilter implements ClientResponseFilter {
     @Override

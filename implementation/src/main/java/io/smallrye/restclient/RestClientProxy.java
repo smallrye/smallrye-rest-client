@@ -19,8 +19,6 @@ import javax.ws.rs.client.Client;
 
 /**
  * This interface is implemented by every proxy created by {@link RestClientBuilderImpl}.
- *
- * @author Martin Kouba
  */
 public interface RestClientProxy {
 

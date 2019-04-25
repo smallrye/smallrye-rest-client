@@ -26,10 +26,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 /**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 11/16/18
- *
  * TODO: replace with a proper RestEasy solution to trigger code within the async thread when it's implemented
  */
 public class ExecutorServiceWrapper implements ExecutorService {

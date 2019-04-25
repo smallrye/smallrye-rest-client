@@ -23,11 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 
-/**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 12/13/18
- */
 public class RestClientListeners {
 
     private RestClientListeners() {

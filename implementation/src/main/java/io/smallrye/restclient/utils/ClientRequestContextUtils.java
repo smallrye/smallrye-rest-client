@@ -28,10 +28,6 @@ import java.util.stream.Collectors;
 
 /**
  * A utility class to pull out common operations on {@link ClientRequestContext}
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/12/19
  */
 public class ClientRequestContextUtils {
 

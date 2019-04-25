@@ -18,11 +18,6 @@ package io.smallrye.restclient.utils;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 2/4/19
- */
 public class ListCastUtils {
 
     private ListCastUtils() {

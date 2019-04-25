@@ -30,10 +30,6 @@ import java.util.stream.Collectors;
 
 /**
  * Generates a value for dynamically computed headers (using {someMethod} as value in {@link org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam})
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/17/19
  */
 class ComputedHeaderValueFiller {
 

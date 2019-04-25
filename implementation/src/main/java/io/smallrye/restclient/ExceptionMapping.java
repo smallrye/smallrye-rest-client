@@ -29,9 +29,6 @@ import javax.ws.rs.core.Response;
 
 import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
 
-/**
- * Created by hbraun on 22.01.18.
- */
 public class ExceptionMapping implements ClientResponseFilter {
 
     public ExceptionMapping(Set<Object> instances) {

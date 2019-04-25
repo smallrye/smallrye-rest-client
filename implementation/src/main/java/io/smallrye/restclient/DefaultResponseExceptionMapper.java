@@ -21,9 +21,6 @@ import javax.ws.rs.core.Response;
 
 import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
 
-/**
- * Created by hbraun on 17.01.18.
- */
 public class DefaultResponseExceptionMapper implements ResponseExceptionMapper {
 
     @Override

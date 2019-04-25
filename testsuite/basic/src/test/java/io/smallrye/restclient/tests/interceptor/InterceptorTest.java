@@ -36,10 +36,6 @@ import org.junit.runner.RunWith;
 import io.smallrye.restclient.app.Counter;
 import io.smallrye.restclient.app.HelloResource;
 
-/**
- *
- * @author Martin Kouba
- */
 @RunWith(Arquillian.class)
 public class InterceptorTest {
 

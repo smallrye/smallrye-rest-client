@@ -42,10 +42,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-
-/**
- * Created by hbraun on 22.01.18.
- */
 public class PartialResponse extends Response implements Serializable {
 
     PartialResponse(ClientResponseContext responseContext) {

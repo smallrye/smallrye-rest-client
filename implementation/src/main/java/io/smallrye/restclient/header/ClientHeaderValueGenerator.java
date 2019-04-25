@@ -31,10 +31,6 @@ import java.util.stream.Stream;
  * it's generated from.
  *
  * @see ComputedHeaderValueFiller
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/17/19
  */
 class ClientHeaderValueGenerator {
     private final boolean required;

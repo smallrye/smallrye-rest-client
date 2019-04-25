@@ -60,9 +60,6 @@ import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
 
 import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
 
-/**
- * Created by hbraun on 15.01.18.
- */
 class RestClientBuilderImpl implements RestClientBuilder {
 
     private static final String RESTEASY_PROPERTY_PREFIX = "resteasy.";

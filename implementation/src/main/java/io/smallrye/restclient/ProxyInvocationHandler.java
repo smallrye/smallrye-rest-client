@@ -48,9 +48,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-/**
- * Created by hbraun on 22.01.18.
- */
 public class ProxyInvocationHandler implements InvocationHandler {
 
     private static final Logger LOGGER = Logger.getLogger(ProxyInvocationHandler.class);

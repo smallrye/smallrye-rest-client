@@ -29,11 +29,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
-/**
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 1/12/19
- */
 public class ClientHeaderProvider {
 
     static Optional<ClientHeaderProvider> forMethod(Method method, Object clientProxy) {

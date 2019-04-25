@@ -25,10 +25,6 @@ import javax.ws.rs.core.MultivaluedMap;
  * and register it via Service Loader mechanism.
  *
  * @see ClientHeadersRequestFilter
- *
- * @author Michal Szynkiewicz, michal.l.szynkiewicz@gmail.com
- * <br>
- * Date: 2/4/19
  */
 public interface IncomingHeadersProvider {
     /**
