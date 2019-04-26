@@ -45,11 +45,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-json-p-provider</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>javax.enterprise</groupId>
       <artifactId>cdi-api</artifactId>
     </dependency>

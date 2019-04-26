@@ -17,7 +17,7 @@ package io.smallrye.restclient.header;
 
 import io.smallrye.restclient.utils.ClientRequestContextUtils;
 import org.eclipse.microprofile.rest.client.ext.ClientHeadersFactory;
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
+import org.jboss.resteasy.core.ResteasyContext;
 
 import javax.annotation.Priority;
 import javax.ws.rs.client.ClientRequestContext;
@@ -92,7 +92,7 @@ public class ClientHeadersRequestFilter implements ClientRequestFilter {
                         (key, values) -> requestContext.getHeaders().put(key, castToListOfObjects(values))
                 );
 
-        ResteasyProviderFactory.getContextDataMap().put(HttpHeaders.class, new HttpHeadersContextProvider(requestContext));
+        ResteasyContext.getContextDataMap().put(HttpHeaders.class, new HttpHeadersContextProvider(requestContext));
     }
 
     private MultivaluedMap<String, String> updateHeaders(MultivaluedMap<String, String> headers, ClientHeadersFactory factory) {

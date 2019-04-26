@@ -15,6 +15,28 @@
  */
 package io.smallrye.restclient;
 
+import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+import io.smallrye.restclient.header.ClientHeaderProviders;
+import io.smallrye.restclient.header.ClientHeadersRequestFilter;
+import io.smallrye.restclient.impl.VertxEngine;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+import org.eclipse.microprofile.rest.client.RestClientDefinitionException;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
+import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
+import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+
+import javax.ws.rs.HttpMethod;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Priorities;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.core.Configuration;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.ext.ParamConverterProvider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -25,7 +47,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,33 +55,14 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Priorities;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Configuration;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.ext.ParamConverterProvider;
-
-import io.smallrye.restclient.header.ClientHeadersRequestFilter;
-import io.smallrye.restclient.header.ClientHeaderProviders;
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.ConfigProvider;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.eclipse.microprofile.rest.client.RestClientDefinitionException;
-import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
-import org.eclipse.microprofile.rest.client.ext.AsyncInvocationInterceptorFactory;
-import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
-import org.jboss.resteasy.specimpl.ResteasyUriBuilder;
-
-import io.smallrye.restclient.async.AsyncInvocationInterceptorHandler;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 class RestClientBuilderImpl implements RestClientBuilder {
+
+    private static Pattern parameterPattern = Pattern.compile("\\{(.*?)\\}");
 
     private static final String RESTEASY_PROPERTY_PREFIX = "resteasy.";
 
@@ -70,20 +72,25 @@ class RestClientBuilderImpl implements RestClientBuilder {
     public static final MethodInjectionFilter METHOD_INJECTION_FILTER = new MethodInjectionFilter();
     public static final ClientHeadersRequestFilter HEADERS_REQUEST_FILTER = new ClientHeadersRequestFilter();
 
+    private final ResteasyClientBuilder builderDelegate;
+
+    private final Config config;
+
+    private ExecutorService executorService;
+
+    private URI baseURI;
+
+    private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories = new ArrayList<>();
+
     RestClientBuilderImpl() {
         ClientBuilder availableBuilder = ClientBuilder.newBuilder();
 
         if (availableBuilder instanceof ResteasyClientBuilder) {
             builderDelegate = (ResteasyClientBuilder) availableBuilder;
-            configurationWrapper = new ConfigurationWrapper(builderDelegate.getConfiguration());
             config = ConfigProvider.getConfig();
         } else {
-            throw new IllegalStateException("Incompatible client builder found " + availableBuilder.getClass());
+            throw new IllegalStateException("Unable to load ResteasyClientBuilder, found " + availableBuilder.getClass() + " instead.");
         }
-    }
-
-    public Configuration getConfigurationWrapper() {
-        return configurationWrapper;
     }
 
     @Override
@@ -103,16 +110,20 @@ class RestClientBuilderImpl implements RestClientBuilder {
     }
 
     @Override
-    public RestClientBuilder connectTimeout(long l, TimeUnit timeUnit) {
-        connectTimeout = l;
-        connectTimeoutUnit = timeUnit;
+    public RestClientBuilder connectTimeout(long time, TimeUnit unit) {
+        if (time < 0) {
+            throw new IllegalArgumentException("connectTimeout can not be negative.");
+        }
+        builderDelegate.connectTimeout(time, unit);
         return this;
     }
 
     @Override
-    public RestClientBuilder readTimeout(long time, TimeUnit timeUnit) {
-        readTimeout = time;
-        readTimeoutUnit = timeUnit;
+    public RestClientBuilder readTimeout(long time, TimeUnit unit) {
+        if (time < 0) {
+            throw new IllegalArgumentException("readTimeout can not be negative.");
+        }
+        builderDelegate.readTimeout(time, unit);
         return this;
     }
 
@@ -150,7 +161,8 @@ class RestClientBuilderImpl implements RestClientBuilder {
             register(DefaultResponseExceptionMapper.class);
         }
 
-        builderDelegate.register(new ExceptionMapping(localProviderInstances), 1);
+        //TODO Fix this
+//        builderDelegate.register(new ExceptionMapping(localProviderInstances), 1);
 
         ClassLoader classLoader = aClass.getClassLoader();
 
@@ -179,14 +191,8 @@ class RestClientBuilderImpl implements RestClientBuilder {
         resteasyClientBuilder.register(METHOD_INJECTION_FILTER);
         resteasyClientBuilder.register(HEADERS_REQUEST_FILTER);
 
-        if (readTimeout != null) {
-            resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
-        }
-        if (connectTimeout != null) {
-            resteasyClientBuilder.connectTimeout(connectTimeout, connectTimeoutUnit);
-        }
-
         client = resteasyClientBuilder
+                .httpEngine(new VertxEngine())
                 .build();
 
         actualClient = client.target(baseURI)
@@ -199,7 +205,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
         interfaces[0] = aClass;
         interfaces[1] = RestClientProxy.class;
 
-        T proxy = (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
+        T proxy = (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, null, client, asyncInterceptorFactories));
         ClientHeaderProviders.registerForClass(aClass, proxy);
         return proxy;
     }
@@ -226,74 +232,9 @@ class RestClientBuilderImpl implements RestClientBuilder {
         return disabled;
     }
 
-    private <T> void verifyInterface(Class<T> typeDef) {
-
-        Method[] methods = typeDef.getMethods();
-
-        // multiple verbs
-        for (Method method : methods) {
-            boolean hasHttpMethod = false;
-            for (Annotation annotation : method.getAnnotations()) {
-                boolean isHttpMethod = (annotation.annotationType().getAnnotation(HttpMethod.class) != null);
-                if (!hasHttpMethod && isHttpMethod) {
-                    hasHttpMethod = true;
-                } else if (hasHttpMethod && isHttpMethod) {
-                    throw new RestClientDefinitionException("Ambiguous @Httpmethod defintion on type " + typeDef);
-                }
-            }
-        }
-
-        // invalid parameter
-        Path classPathAnno = typeDef.getAnnotation(Path.class);
-
-        final Set<String> classLevelVariables = new HashSet<>();
-        ResteasyUriBuilder classTemplate = null;
-        if (classPathAnno != null) {
-            classTemplate = (ResteasyUriBuilder) UriBuilder.fromUri(classPathAnno.value());
-            classLevelVariables.addAll(classTemplate.getPathParamNamesInDeclarationOrder()); // TODO: doesn't seem to be used!
-        }
-        ResteasyUriBuilder template;
-        for (Method method : methods) {
-
-            Path methodPathAnno = method.getAnnotation(Path.class);
-            if (methodPathAnno != null) {
-                template = classPathAnno == null ? (ResteasyUriBuilder) UriBuilder.fromUri(methodPathAnno.value())
-                        : (ResteasyUriBuilder) UriBuilder.fromUri(classPathAnno.value() + "/" + methodPathAnno.value());
-            } else {
-                template = classTemplate;
-            }
-            if (template == null) {
-                continue;
-            }
-
-            // it's not executed, so this can be anything - but a hostname needs to present
-            template.host("localhost");
-
-            Set<String> allVariables = new HashSet<>(template.getPathParamNamesInDeclarationOrder());
-            Map<String, Object> paramMap = new HashMap<>();
-            for (Parameter p : method.getParameters()) {
-                PathParam pathParam = p.getAnnotation(PathParam.class);
-                if (pathParam != null) {
-                    paramMap.put(pathParam.value(), "foobar");
-                }
-            }
-
-            if (allVariables.size() != paramMap.size()) {
-                throw new RestClientDefinitionException("Parameters and variables don't match on " + typeDef + "::" + method.getName());
-            }
-
-            try {
-                template.resolveTemplates(paramMap, false).build();
-            } catch (IllegalArgumentException ex) {
-                throw new RestClientDefinitionException("Parameter names don't match variable names on " + typeDef + "::" + method.getName(), ex);
-            }
-
-        }
-    }
-
     @Override
     public Configuration getConfiguration() {
-        return getConfigurationWrapper();
+        return builderDelegate.getConfiguration();
     }
 
     @Override
@@ -316,7 +257,7 @@ class RestClientBuilderImpl implements RestClientBuilder {
                     throw new IllegalArgumentException("Value must be an instance of List<> for ResteasyClientBuilder setter method: " + builderMethodName);
                 }
             } else {
-                arguments = new Object[] { value };
+                arguments = new Object[]{value};
             }
             try {
                 builderMethod.invoke(builderDelegate, arguments);
@@ -382,9 +323,6 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
             // local
             ResponseExceptionMapper mapper = (ResponseExceptionMapper) o;
-            HashMap<Class<?>, Integer> contracts = new HashMap<>();
-            contracts.put(ResponseExceptionMapper.class, i);
-            registerLocalProviderInstance(mapper, contracts);
 
             // delegate
             builderDelegate.register(mapper, i);
@@ -393,9 +331,6 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
             // local
             ParamConverterProvider converter = (ParamConverterProvider) o;
-            HashMap<Class<?>, Integer> contracts = new HashMap<>();
-            contracts.put(ParamConverterProvider.class, i);
-            registerLocalProviderInstance(converter, contracts);
 
             // delegate
             builderDelegate.register(converter, i);
@@ -425,62 +360,102 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
     @Override
     public RestClientBuilder register(Object o, Map<Class<?>, Integer> map) {
-
-        if (o instanceof ResponseExceptionMapper) {
-
-            // local
-            ResponseExceptionMapper mapper = (ResponseExceptionMapper) o;
-            HashMap<Class<?>, Integer> contracts = new HashMap<>();
-            contracts.put(ResponseExceptionMapper.class, map.get(ResponseExceptionMapper.class));
-            registerLocalProviderInstance(mapper, contracts);
-
-            // other
-            builderDelegate.register(o, map);
-
-        } else {
-            builderDelegate.register(o, map);
-        }
+        builderDelegate.register(o, map);
 
         return this;
     }
 
-    public Set<Object> getLocalProviderInstances() {
-        return localProviderInstances;
-    }
-
-    public void registerLocalProviderInstance(Object provider, Map<Class<?>, Integer> contracts) {
-        for (Object registered : getLocalProviderInstances()) {
-            if (registered == provider) {
-                System.out.println("Provider already registered " + provider.getClass().getName());
-                return;
-            }
-        }
-
-        localProviderInstances.add(provider);
-        configurationWrapper.registerLocalContract(provider.getClass(), contracts);
-    }
-    
     ResteasyClientBuilder getBuilderDelegate() {
         return builderDelegate;
     }
 
-    private final ResteasyClientBuilder builderDelegate;
+    private <T> void verifyInterface(Class<T> typeDef) {
 
-    private final ConfigurationWrapper configurationWrapper;
+        Method[] methods = typeDef.getMethods();
 
-    private final Config config;
+        // Multiple HTTP Verb verification
+        for (Method method : methods) {
+            boolean hasHttpMethod = false;
+            for (Annotation annotation : method.getAnnotations()) {
+                boolean isHttpMethod = (annotation.annotationType().getAnnotation(HttpMethod.class) != null);
+                if (!hasHttpMethod && isHttpMethod) {
+                    hasHttpMethod = true;
+                } else if (hasHttpMethod && isHttpMethod) {
+                    throw new RestClientDefinitionException("Ambiguous HTTP Method definition on " + typeDef.getName() + "::" + method.getName());
+                }
+            }
+        }
 
-    private ExecutorService executorService;
+        // Invalid URI template verification
+        Path classPathAnnotation = typeDef.getAnnotation(Path.class);
+        Set<String> classPathParams = new HashSet<>();
 
-    private URI baseURI;
+        if (classPathAnnotation != null) {
+            Matcher matchPattern = parameterPattern.matcher(classPathAnnotation.value());
 
-    private Long connectTimeout;
-    private TimeUnit connectTimeoutUnit;
+            while (matchPattern.find()) {
+                classPathParams.add(matchPattern.group(1));
+            }
+        }
 
-    private Long readTimeout;
-    private TimeUnit readTimeoutUnit;
+        AtomicBoolean foundClassParam = new AtomicBoolean(classPathParams.isEmpty());
 
-    private Set<Object> localProviderInstances = new HashSet<>();
+        for (Method method : methods) {
+            Set<String> methodParameterPathParams = new HashSet<>();
+            for (Parameter p : method.getParameters()) {
+                PathParam pathParam = p.getAnnotation(PathParam.class);
+                if (pathParam != null) {
+                    methodParameterPathParams.add(pathParam.value());
+                }
+            }
 
-    private final List<AsyncInvocationInterceptorFactory> asyncInterceptorFactories = new ArrayList<>();
+            Path methodPathAnno = method.getAnnotation(Path.class);
+            Set<String> methodPathParams = new HashSet<>();
+
+            if (methodPathAnno != null) {
+                Matcher matchPattern = parameterPattern.matcher(methodPathAnno.value());
+                while (matchPattern.find()) {
+                    methodPathParams.add(matchPattern.group(1));
+                }
+            }
+
+            if (methodPathAnno == null && !methodParameterPathParams.isEmpty()) {
+                Set<String> unmatchedParams = methodParameterPathParams.stream()
+                        .filter(s -> {
+                            if (classPathParams.contains(s)) {
+                                foundClassParam.set(true);
+                            }
+                            return !classPathParams.contains(s);
+                        })
+                        .collect(Collectors.toSet());
+
+                if (!unmatchedParams.isEmpty()) {
+                    throw new RestClientDefinitionException(
+                            String.format("Parameters on %s::%s are not present on either Class or Method @Path: %s",
+                                    typeDef.getName(), method.getName(), Arrays.toString(unmatchedParams.toArray())));
+                }
+            } else if (!methodPathParams.isEmpty() && !methodParameterPathParams.isEmpty()) {
+                if (!classPathParams.isEmpty()) {
+                    classPathParams.forEach(s -> {
+                        if (methodParameterPathParams.remove(s)) {
+                            foundClassParam.set(true);
+                        }
+                    });
+                }
+
+                if (methodPathParams.size() != methodParameterPathParams.size()) {
+                    throw new RestClientDefinitionException("Mismatched @Path and @PathParam template variables on " + typeDef.getName() + "::" + method.getName());
+                }
+                if (!methodPathParams.containsAll(methodParameterPathParams)) {
+                    throw new RestClientDefinitionException("Mismatched @Path and @PathParam template variables on " + typeDef.getName() + "::" + method.getName());
+                }
+            } else if (!methodPathParams.isEmpty()) {
+                throw new RestClientDefinitionException("Mismatched @Path and @PathParam template variables on " + typeDef.getName() + "::" + method.getName());
+            }
+        }
+
+        if (!foundClassParam.get()) {
+            throw new RestClientDefinitionException("@Path on Class " + typeDef.getName() + " contains path template without corresponding @PathParam on method parameter.");
+        }
+    }
 }
