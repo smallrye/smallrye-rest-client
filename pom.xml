@@ -31,7 +31,7 @@
   <name>SmallRye: MicroProfile Rest Client - Parent</name>
 
   <properties>
-    <version.smallrye.config>1.3.5</version.smallrye.config>
+    <version.smallrye.config>1.3.6</version.smallrye.config>
     <version.smallrye.faulttolerance>2.0.4</version.smallrye.faulttolerance>
     <version.smallrye.metrics>1.1.3</version.smallrye.metrics>
     <version.microprofile.restclient>1.2.1</version.microprofile.restclient>
