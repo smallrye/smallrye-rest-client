@@ -20,6 +20,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Proxy;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -154,42 +156,29 @@ class RestClientBuilderImpl implements RestClientBuilder {
 
         ClassLoader classLoader = aClass.getClassLoader();
 
-        List<String> noProxyHosts = Arrays.asList(
-                System.getProperty("http.nonProxyHosts", "localhost|127.*|[::1]").split("|"));
-        String proxyHost = System.getProperty("http.proxyHost");
+        selectHttpProxy()
+                .ifPresent(proxyAddress -> builderDelegate.defaultProxy(proxyAddress.getHostString(), proxyAddress.getPort()));
 
-        T actualClient;
-        ResteasyClient client;
-
-        ResteasyClientBuilder resteasyClientBuilder;
-        if (proxyHost != null && !noProxyHosts.contains(baseURI.getHost())) {
-            // Use proxy, if defined
-            resteasyClientBuilder = builderDelegate.defaultProxy(
-                    proxyHost,
-                    Integer.parseInt(System.getProperty("http.proxyPort", "80")));
-        } else {
-            resteasyClientBuilder = builderDelegate;
-        }
         // this is rest easy default
         ExecutorService executorService = this.executorService != null ? this.executorService : Executors.newFixedThreadPool(10);
 
         ExecutorService executor = AsyncInvocationInterceptorHandler.wrapExecutorService(executorService);
-        resteasyClientBuilder.executorService(executor);
-        resteasyClientBuilder.register(DEFAULT_MEDIA_TYPE_FILTER);
-        resteasyClientBuilder.register(METHOD_INJECTION_FILTER);
-        resteasyClientBuilder.register(HEADERS_REQUEST_FILTER);
+        builderDelegate.executorService(executor);
+        builderDelegate.register(DEFAULT_MEDIA_TYPE_FILTER);
+        builderDelegate.register(METHOD_INJECTION_FILTER);
+        builderDelegate.register(HEADERS_REQUEST_FILTER);
 
         if (readTimeout != null) {
-            resteasyClientBuilder.readTimeout(readTimeout, readTimeoutUnit);
+            builderDelegate.readTimeout(readTimeout, readTimeoutUnit);
         }
         if (connectTimeout != null) {
-            resteasyClientBuilder.connectTimeout(connectTimeout, connectTimeoutUnit);
+            builderDelegate.connectTimeout(connectTimeout, connectTimeoutUnit);
         }
 
-        client = resteasyClientBuilder
+        ResteasyClient client = builderDelegate
                 .build();
 
-        actualClient = client.target(baseURI)
+        T actualClient = client.target(baseURI)
                 .proxyBuilder(aClass)
                 .classloader(classLoader)
                 .defaultConsumes(MediaType.WILDCARD)
@@ -202,6 +191,14 @@ class RestClientBuilderImpl implements RestClientBuilder {
         T proxy = (T) Proxy.newProxyInstance(classLoader, interfaces, new ProxyInvocationHandler(aClass, actualClient, getLocalProviderInstances(), client, asyncInterceptorFactories));
         ClientHeaderProviders.registerForClass(aClass, proxy);
         return proxy;
+    }
+
+    private Optional<InetSocketAddress> selectHttpProxy() {
+        return ProxySelector.getDefault().select(baseURI).stream()
+                .filter(proxy -> proxy.type() == java.net.Proxy.Type.HTTP)
+                .map(java.net.Proxy::address)
+                .map(InetSocketAddress.class::cast)
+                .findFirst();
     }
 
     private boolean isMapperDisabled() {
